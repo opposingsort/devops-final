@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+__tests__
+ansible
+grafana
+screenshots
+docker-compose.yml
+prometheus.yml
+README.md

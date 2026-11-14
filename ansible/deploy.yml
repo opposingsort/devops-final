@@ -1,0 +1,55 @@
+- name: Deploy devops-final
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    deploy_dir: /opt/devops-final
+    app_image: ghcr.io/opposingsort/devops-final:latest
+
+  tasks:
+    - name: Check docker
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      ignore_errors: true
+
+    - name: Install docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: true
+      when: docker_version.rc != 0
+
+    - name: Create /opt/devops-final
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy docker-compose.yml and prometheus.yml
+      copy:
+        src: "../{{ item }}"
+        dest: "{{ deploy_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - docker-compose.yml
+        - prometheus.yml
+
+    - name: Copy grafana configs
+      copy:
+        src: ../grafana/
+        dest: "{{ deploy_dir }}/grafana/"
+        mode: "0644"
+
+    # TODO: Сделай changed только когда контейнеры реально создались, а то всегда changed
+    - name: docker compose up -d
+      command: docker compose up -d --no-build
+      args:
+        chdir: "{{ deploy_dir }}"
+      environment:
+        APP_IMAGE: "{{ app_image }}"
+      register: up_result
+      changed_when: "'Created' in up_result.stderr or 'Recreated' in up_result.stderr"
